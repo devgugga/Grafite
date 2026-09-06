@@ -1,0 +1,18 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+*.swp
+
+# Logs and temporary files
+*.log
+tmp/
+
+# Assistant hooks embed machine-local absolute paths
+.claude/settings.json
+.claude/settings.local.json
+.codex/hooks.json
