@@ -1,4 +1,4 @@
-mod error;
+use grafite::error;
 
 use clap::{Parser, Subcommand};
 use std::process::ExitCode;
