@@ -16,3 +16,7 @@ tmp/
 .claude/settings.json
 .claude/settings.local.json
 .codex/hooks.json
+
+# Grafite
+/.grafite/state/
+
