@@ -36,7 +36,15 @@ fn main() -> ExitCode {
                 "run grafite from inside a git repository",
             )),
         },
-        Command::Doctor => Ok(String::new()),
+        Command::Doctor => match std::env::current_dir() {
+            Ok(dir) => grafite::commands::doctor(&dir),
+            Err(e) => Err(grafite::error::Error::new(
+                "determine the current directory",
+                "<cwd>",
+                e.to_string(),
+                "run grafite from inside a repository",
+            )),
+        },
         Command::Why { path } => match std::env::current_dir() {
             Ok(dir) => grafite::commands::why(&dir, &path),
             Err(e) => Err(grafite::error::Error::new(

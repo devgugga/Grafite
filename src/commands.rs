@@ -105,6 +105,21 @@ pub fn why(repo: &Path, path: &str) -> Result<String> {
     Ok(payload.to_string())
 }
 
+pub fn doctor(repo: &Path) -> Result<String> {
+    let mut reports = vec![
+        crate::provider::graphify(repo),
+        crate::provider::semantica(),
+    ];
+    reports.sort_by(|a, b| a.provider.cmp(&b.provider));
+    let healthy = reports.iter().all(crate::provider::Report::is_acceptable);
+    let payload = serde_json::json!({
+        "schema_version": SCHEMA_VERSION,
+        "healthy": healthy,
+        "providers": reports,
+    });
+    Ok(payload.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
