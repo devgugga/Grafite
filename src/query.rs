@@ -3,7 +3,8 @@ use crate::record::Record;
 
 /// Records that touched `path`. Reports association only; asserts no causality.
 pub fn why(records: &[Record], path: &str) -> Vec<Record> {
-    let target = classify(path).id();
+    let clean_path = path.strip_prefix("./").unwrap_or(path);
+    let target = classify(clean_path).id();
     let mut found: Vec<Record> = records
         .iter()
         .filter(|record| record.edges.iter().any(|edge| edge.to == target))
@@ -54,6 +55,14 @@ mod tests {
         let path = "docs/superpowers/specs/2026-01-01-x-design.md";
         let records = vec![record_with("commit:aaa", &format!("spec:{path}"))];
         assert_eq!(why(&records, path).len(), 1);
+    }
+
+    #[test]
+    fn matches_records_touching_path_with_leading_dot_slash() {
+        let records = vec![record_with("commit:aaa", "file:a.rs")];
+        let found = why(&records, "./a.rs");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].id, "commit:aaa");
     }
 
     #[test]

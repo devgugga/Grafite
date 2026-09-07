@@ -46,11 +46,19 @@ pub fn graphify(repo: &Path) -> Report {
             status: Status::Ok,
             detail: String::from_utf8_lossy(&output.stdout).trim().to_string(),
         },
-        Ok(output) => Report {
-            provider: "graphify".to_string(),
-            status: Status::Failed,
-            detail: String::from_utf8_lossy(&output.stderr).trim().to_string(),
-        },
+        Ok(output) => {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            let detail = if stderr.is_empty() {
+                String::from_utf8_lossy(&output.stdout).trim().to_string()
+            } else {
+                stderr
+            };
+            Report {
+                provider: "graphify".to_string(),
+                status: Status::Failed,
+                detail,
+            }
+        }
         Err(e) => Report {
             provider: "graphify".to_string(),
             status: Status::Failed,
