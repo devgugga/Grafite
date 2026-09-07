@@ -1,5 +1,6 @@
 use crate::record::Rationale;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedTitle {
     pub gitmoji: Option<String>,
     pub subject: String,
@@ -65,6 +66,8 @@ pub fn parse_rationale(body: &str) -> Rationale {
         }
         if let Some(bullet) = content.strip_prefix("- ") {
             buckets[index].push(bullet.trim().to_string());
+        } else if buckets[index].is_empty() {
+            buckets[index].push(content.to_string());
         } else if let Some(last) = buckets[index].last_mut() {
             // Continuation of the previous bullet, wrapped at 76 columns.
             last.push(' ');
@@ -153,5 +156,19 @@ mod tests {
     fn recognizes_graph_sync_commits() {
         assert!(is_graph_sync("🕸️ sync knowledge graph"));
         assert!(!is_graph_sync("✨ add a thing: core"));
+    }
+
+    #[test]
+    fn unbulleted_text_under_heading_is_captured() {
+        let body = "\
+### 🚀 Outcome
+Initial unbulleted outcome sentence.
+Continuation of unbulleted sentence.";
+        let rationale = parse_rationale(body);
+        assert_eq!(rationale.outcome.len(), 1);
+        assert_eq!(
+            rationale.outcome[0],
+            "Initial unbulleted outcome sentence. Continuation of unbulleted sentence."
+        );
     }
 }
