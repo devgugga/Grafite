@@ -1755,12 +1755,31 @@ Expected: `"healthy": true` with `semantica` reported `absent`. Paste it.
 
 - [ ] **Step 5: Verify criterion 5 — no excluded path leaked**
 
+The criterion is about **edge targets**, so the check must read `.edges[].to`
+and nothing else. A line-wide `grep` over the JSONL would also match the
+`rationale` prose, where a commit author may legitimately mention `.env` or
+`id_ed25519` in their own message — exactly the ingestion the design document
+declares and accepts in §8. Matching there is expected, not a leak.
+
 ```bash
-grep -c -E '\.env|\.pass|id_ed25519|\.agent-sandbox\.toml' \
-  /home/v/Data/Projects/agent-sandbox/.grafite/state/records/decisions.jsonl
+python3 - <<'PY'
+import json, re
+pattern = re.compile(r'\.env|\.pass\b|id_ed25519|agent-sandbox\.toml')
+records = "/home/v/Data/Projects/agent-sandbox/.grafite/state/records/decisions.jsonl"
+leaks = [
+    (json.loads(line)["id"], edge["to"])
+    for line in open(records)
+    for edge in json.loads(line).get("edges", [])
+    if pattern.search(edge["to"])
+]
+print(f"edge-target leaks: {len(leaks)}")
+for leak in leaks:
+    print(" ", leak)
+PY
 ```
 
-Expected: `0`. Any non-zero result is a release blocker; stop and report it.
+Expected: `edge-target leaks: 0`. Any leak is a release blocker; stop and
+report it.
 
 - [ ] **Step 6: Verify criterion 1 — no network access**
 

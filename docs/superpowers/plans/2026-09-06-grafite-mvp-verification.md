@@ -18,7 +18,7 @@ Plan Reference: `docs/superpowers/plans/2026-09-06-grafite-mvp.md` (Task 9)
 | **4** | `doctor` reports absent Semantica as healthy | **PASS** | `doctor` output reported `"healthy": true` with `semantica` status `"absent"`; `sync` and `why` functional. |
 | **5** | Excluded paths not leaked | **PASS** | Automated test `sync_omits_excluded_paths` passes; zero excluded paths in `.edges[].to` across all 85 records in `agent-sandbox`. |
 | **6** | Heading-less commit bodies yield empty rationale | **PASS** | Automated unit test `extract::tests::body_without_headings_yields_empty_rationale_not_an_error` passes. |
-| **7** | Toolchain gates pass | **PASS** | `cargo fmt --all -- --check`, `cargo clippy --all-targets --all-features -- -D warnings`, and 33/33 tests pass in `cargo test --all-features`. |
+| **7** | Toolchain gates pass | **PASS** | `cargo fmt --all -- --check`, `cargo clippy --all-targets --all-features -- -D warnings`, and 34/34 tests pass in `cargo test --all-features`. See the re-verification appendix for the count at `HEAD`. |
 
 ---
 
@@ -824,7 +824,8 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 ```
 
 **Verification Analysis:**
-- 33 total automated tests pass across all crates and integration test suites.
+- 33 total automated tests passed at the commit this section was written.
+  The count is 34 at `HEAD`; see the re-verification appendix.
 - Clippy passes with `-D warnings` on all targets and features.
 - Rustfmt formatting checks pass with no discrepancies.
 
@@ -860,3 +861,102 @@ Output:
  M tests/unit/test_podman.py
 ```
 Zero untracked files or test artifacts remain in `agent-sandbox`.
+
+---
+
+## Appendix: Independent Re-verification at `f08e5b5`
+
+The body of this report was written at `a4e29de`. Commit `f08e5b5` landed
+afterwards, hardening `provider::graphify` detail extraction and normalizing a
+leading `./` in `query::why`, and adding one test. The evidence above therefore
+predates the current `HEAD`. This appendix re-runs the criteria against
+`f08e5b5` so no criterion rests on stale evidence.
+
+### Toolchain gates
+
+```text
+cargo fmt --all -- --check                                        → clean
+cargo clippy --all-targets --all-features -- -D warnings          → 0 warnings
+cargo test --all-features                                         → 34 passed, 0 failed
+```
+
+### Criteria 1 and 2 — completeness, filtering, determinism
+
+```text
+$ grafite sync
+{"commits_read":88,"records":85,"schema_version":1}
+$ grafite sync            # second run
+{"commits_read":88,"records":85,"schema_version":1}
+$ diff run1.jsonl .grafite/state/records/decisions.jsonl
+                          # no output: byte-identical
+$ git log --oneline | wc -l                          → 88
+$ git log --format='%s' | grep -c 'sync knowledge graph'  → 3
+```
+
+88 commits read, 3 graph-sync commits discarded, 85 records. The arithmetic is
+consistent and the output is byte-identical across runs.
+
+### Criterion 1 — no network access
+
+```text
+$ unshare -r -n grafite sync
+{"commits_read":88,"records":85,"schema_version":1}   # exit 0
+```
+
+### Criterion 3 — `why` on a real file
+
+```text
+$ grafite why cli/asb/doctor.py        # exit 0
+records: 7
+id: commit:05407c65eb008…  (40-character SHA)
+short_id: 05407c65         (fixed 8 characters)
+rationale.architecture[0]: "Extract `_link()` helper in `install.py` to
+eliminate duplicated symlink creation logic. …"
+```
+
+### Criterion 4 — Semantica absent is healthy
+
+```json
+{
+    "healthy": true,
+    "providers": [
+        {"detail": "Graphify project configuration verified for 0.9.51.",
+         "provider": "graphify", "status": "ok"},
+        {"detail": "not installed; this is the expected state",
+         "provider": "semantica", "status": "absent"}
+    ],
+    "schema_version": 1
+}
+```
+
+Graphify's `ok` detail is the verbatim output of the provider's own
+`--verify-only` script, confirming that `doctor` delegates rather than
+re-implementing the check.
+
+### Criterion 5 — excluded paths, checked correctly
+
+The plan's original step used a line-wide `grep` over the JSONL, which returns
+`6` here. All six matches are `rationale` prose — commit authors naming
+`.env`, `id_ed25519`, or `.agent-sandbox.toml` in their own messages, which is
+the verbatim body ingestion the design document declares and accepts in §8.
+None is an edge target. Scoped to `.edges[].to`, which is what the criterion
+actually constrains:
+
+```text
+edge-target leaks: 0
+```
+
+The plan's step has been corrected to check `.edges[].to` directly.
+
+### Panic policy (`conventions.md` §2)
+
+A scan of every module up to its `#[cfg(test)]` boundary found no `unwrap()`,
+`expect()`, `panic!()`, or `unreachable!()`. The one indexing site,
+`buckets[index]` in `src/extract.rs`, now carries a comment proving the index
+is always in bounds, as §2.2 requires.
+
+### Repository hygiene
+
+`.grafite/` was recreated in `agent-sandbox` during this re-verification and
+removed afterwards. That repository shows only its own 17 pre-existing modified
+files; nothing from Grafite remains.

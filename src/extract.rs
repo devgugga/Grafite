@@ -64,6 +64,10 @@ pub fn parse_rationale(body: &str) -> Rationale {
         if content.is_empty() {
             continue;
         }
+        // SAFETY OF INDEXING: `index` originates only from `heading_index`,
+        // which returns a value taken from `HEADINGS`. That array holds five
+        // entries with indices 0..=4, and `buckets` is `[Vec<String>; 5]`, so
+        // `buckets[index]` is always in bounds.
         if let Some(bullet) = content.strip_prefix("- ") {
             buckets[index].push(bullet.trim().to_string());
         } else if buckets[index].is_empty() {
