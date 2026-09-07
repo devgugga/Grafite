@@ -27,7 +27,15 @@ enum Command {
 fn main() -> ExitCode {
     let cli = Cli::parse();
     let outcome: error::Result<String> = match cli.command {
-        Command::Sync => Ok(String::new()),
+        Command::Sync => match std::env::current_dir() {
+            Ok(dir) => grafite::commands::sync(&dir),
+            Err(e) => Err(grafite::error::Error::new(
+                "determine the current directory",
+                "<cwd>",
+                e.to_string(),
+                "run grafite from inside a git repository",
+            )),
+        },
         Command::Doctor => Ok(String::new()),
         Command::Why { path: _ } => Ok(String::new()),
     };
