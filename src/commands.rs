@@ -85,6 +85,26 @@ pub fn sync(repo: &Path) -> Result<String> {
     Ok(summary.to_string())
 }
 
+pub fn why(repo: &Path, path: &str) -> Result<String> {
+    let source = records_path(repo);
+    let text = std::fs::read_to_string(&source).map_err(|e| {
+        Error::new(
+            "read provenance records",
+            source.display().to_string(),
+            e.to_string(),
+            "run `grafite sync` first to generate the records",
+        )
+    })?;
+    let records = record::from_jsonl(&text)?;
+    let found = crate::query::why(&records, path);
+    let payload = serde_json::json!({
+        "schema_version": SCHEMA_VERSION,
+        "path": path,
+        "records": found,
+    });
+    Ok(payload.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
